@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { Phone, Lock, Loader2, ArrowRight, Mail, UserCircle, User as UserIcon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -8,7 +8,7 @@ import { useAuthStore, type AuthUser } from "@/store/useAuthStore";
 import api from "@/lib/axios";
 import { useWishlistStore } from "@/store/useWishlistStore";
 
-export default function Login() {
+function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get("redirect") || "/";
@@ -250,5 +250,17 @@ export default function Login() {
         </p>
       </motion.div>
     </div>
+  );
+}
+
+export default function Login() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-[85vh] flex items-center justify-center">
+        <Loader2 className="h-10 w-10 animate-spin text-myntra-pink" />
+      </div>
+    }>
+      <LoginContent />
+    </Suspense>
   );
 }
