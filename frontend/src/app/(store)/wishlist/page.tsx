@@ -59,7 +59,14 @@ export default function WishlistPage() {
                         <div className="font-bold text-[14px] text-myntra-dark">₹{item.price}</div>
                         <button 
                             onClick={() => {
-                                addCartItem({ ...item, quantity: 1, color: "Standard", size: "Standard" });
+                                addCartItem({ 
+                                    ...item, 
+                                    quantity: 1, 
+                                    color: "Standard", 
+                                    size: "Standard",
+                                    mrp: item.mrp || item.price,
+                                    slug: item.slug
+                                });
                                 removeItem(item._id);
                             }}
                             className="w-full flex items-center justify-center space-x-2 border border-gray-300 text-myntra-pink font-bold py-2 rounded-md hover:border-myntra-pink transition-colors text-[14px]"

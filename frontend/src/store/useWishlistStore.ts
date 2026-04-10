@@ -8,7 +8,8 @@ export interface WishlistItem {
   name: string;
   price: number;
   image: string;
-  slug?: string;
+  slug: string;
+  mrp?: number;
   discountPrice?: number;
 }
 
@@ -71,7 +72,8 @@ export const useWishlistStore = create<WishlistState>()(
                 price: p.price,
                 discountPrice: p.discountPrice,
                 image: p.images?.[0]?.url || "placeholder",
-                slug: p.slug
+                slug: p.slug || "",
+                mrp: p.mrp || p.price
               }));
               set({ items: backendItems });
             }
