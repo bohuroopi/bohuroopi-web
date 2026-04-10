@@ -1,28 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { Search, ShoppingBag, User, Heart, Menu, Loader2 } from "lucide-react";
+import { ShoppingBag, User, Heart, Menu, Loader2, Search } from "lucide-react";
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useCartStore } from "@/store/useCartStore";
 import api from "@/lib/axios";
+import LiveSearch from "@/components/ui/LiveSearch";
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [settings, setSettings] = useState<any>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const router = useRouter();
   const { totalItems } = useCartStore();
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
-      setIsMenuOpen(false);
-    }
-  };
 
   useEffect(() => {
     setMounted(true);
@@ -56,18 +46,7 @@ const Navbar = () => {
 
           {/* Expanded Search Bar */}
           <div className="hidden md:flex flex-grow justify-center px-4 max-w-3xl">
-            <form onSubmit={handleSearch} className="w-full relative bg-white/10 rounded-2xl flex items-center overflow-hidden border border-white/20 backdrop-blur-md shadow-inner">
-              <button type="submit" className="absolute left-5 z-10">
-                <Search className="h-4 w-4 text-white/70 hover:text-white transition-colors" />
-              </button>
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search for premium jewellery, collections and more..."
-                className="w-full bg-transparent py-3.5 pl-14 pr-5 text-[13px] outline-none text-white placeholder:text-white/60 font-medium tracking-wide"
-              />
-            </form>
+             <LiveSearch />
           </div>
 
           {/* Action Icons */}
@@ -113,18 +92,9 @@ const Navbar = () => {
           className="lg:hidden bg-myntra-pink border-t border-white/10 px-4 py-6 shadow-xl absolute w-full backdrop-blur-md"
         >
           <div className="flex flex-col space-y-2 text-[12px] font-black text-white uppercase tracking-widest px-2">
-            <form onSubmit={handleSearch} className="py-4 border-b border-white/10 relative">
-              <input
-                 type="text"
-                 value={searchQuery}
-                 onChange={(e) => setSearchQuery(e.target.value)}
-                 placeholder="Search products..."
-                 className="w-full bg-white/10 rounded-xl py-3 pl-4 pr-10 outline-none text-white placeholder:text-white/60"
-              />
-              <button type="submit" className="absolute right-4 top-1/2 -translate-y-1/2">
-                <Search className="h-4 w-4 text-white/70" />
-              </button>
-            </form>
+            <div className="py-4 border-b border-white/10 relative">
+              <LiveSearch isMobile onClose={() => setIsMenuOpen(false)} />
+            </div>
             <Link href="/" onClick={() => setIsMenuOpen(false)} className="py-4 border-b border-white/10">Home</Link>
             <Link href="/profile" onClick={() => setIsMenuOpen(false)} className="py-4 border-b border-white/10">Profile</Link>
             <Link href="/wishlist" onClick={() => setIsMenuOpen(false)} className="py-4 border-b border-white/10">Wishlist</Link>
