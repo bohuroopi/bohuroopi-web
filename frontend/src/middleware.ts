@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-export function proxy(request: NextRequest) {
+export function middleware(request: NextRequest) {
   const url = request.nextUrl.clone();
   const hostname = request.headers.get('host');
 
@@ -14,8 +14,7 @@ export function proxy(request: NextRequest) {
     return NextResponse.rewrite(url);
   }
 
-  // Also block direct visits to /admin on the main domain if desired 
-  // (optional, but good for security obscurity)
+  // Also block direct visits to /admin on the main domain for security obscurity
   if (url.pathname.startsWith('/admin') && (!hostname || !hostname.startsWith('admin.'))) {
      return NextResponse.redirect(new URL('/', request.url));
   }
