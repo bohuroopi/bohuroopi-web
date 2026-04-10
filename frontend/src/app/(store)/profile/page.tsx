@@ -1,7 +1,7 @@
 "use client";
 
-import { useAuthStore } from "@/store/useAuthStore";
-import { LogOut, User, Package, Settings, Heart, Edit2, Loader2, Save, X, Camera, MapPin } from "lucide-react";
+import { useAuthStore, type AuthUser } from "@/store/useAuthStore";
+import { LogOut, User as UserIcon, Package, Settings, Heart, Edit2, Loader2, Save, X, Camera, MapPin } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -73,7 +73,7 @@ export default function Profile() {
       const res = await api.put("/users/profile", payload);
       if (res.data.success) {
         setAuth(
-          { _id: res.data._id, name: res.data.name, email: res.data.email, phone: res.data.phone, avatar: res.data.avatar },
+          { _id: res.data._id, name: res.data.name, email: res.data.email, phone: res.data.phone, avatar: res.data.avatar } as AuthUser,
           res.data.token || token!
         );
         setIsEditing(false);
@@ -110,7 +110,7 @@ export default function Profile() {
                 {displayAvatar ? (
                   <img src={displayAvatar} alt={user?.name} className="h-full w-full object-cover" />
                 ) : (
-                  <User className="h-10 w-10 text-gray-400" />
+                  <UserIcon className="h-10 w-10 text-gray-400" />
                 )}
               </div>
               {avatarUploading && (

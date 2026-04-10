@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Lock, Mail, User, ShieldCheck, Loader2 } from "lucide-react";
+import { Lock, Mail, User as UserIcon, ShieldCheck, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { useAuthStore } from "@/store/useAuthStore";
+import { useAuthStore, type AuthUser } from "@/store/useAuthStore";
 import api from "@/lib/axios";
 
 export default function Register() {
@@ -61,7 +61,7 @@ export default function Register() {
             name: response.data.name, 
             email: response.data.email, 
             role: response.data.role 
-          }, 
+          } as AuthUser, 
           response.data.token
         );
         router.push("/");
@@ -96,7 +96,7 @@ export default function Register() {
         <form onSubmit={handleSubmit} className="mt-10 space-y-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="relative group">
-              <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-myntra-pink transition-colors" />
+              <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-myntra-pink transition-colors" />
               <input 
                 type="text" 
                 name="name"

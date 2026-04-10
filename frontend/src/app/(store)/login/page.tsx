@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Phone, Lock, Loader2, ArrowRight, Mail, UserCircle } from "lucide-react";
+import { Phone, Lock, Loader2, ArrowRight, Mail, UserCircle, User as UserIcon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useAuthStore } from "@/store/useAuthStore";
+import { useAuthStore, type AuthUser } from "@/store/useAuthStore";
 import api from "@/lib/axios";
 import { useWishlistStore } from "@/store/useWishlistStore";
 
@@ -52,7 +52,7 @@ export default function Login() {
             name: response.data.name, 
             phone: response.data.phone, 
             email: response.data.email
-          }, 
+          } as AuthUser, 
           response.data.token
         );
         
@@ -85,7 +85,7 @@ export default function Login() {
             name: response.data.name, 
             phone: response.data.phone, 
             email: response.data.email 
-          }, 
+          } as AuthUser, 
           response.data.token
         );
         await useWishlistStore.getState().fetchWishlist();

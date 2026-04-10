@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Lock, Mail, Loader2, ShieldCheck } from "lucide-react";
+import { Lock, Mail, Loader2, ShieldCheck, User as UserIcon } from "lucide-react";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { useAuthStore } from "@/store/useAuthStore";
+import { useAuthStore, type AuthUser } from "@/store/useAuthStore";
 import api from "@/lib/axios";
 
 export default function AdminLogin() {
@@ -30,7 +30,7 @@ export default function AdminLogin() {
             _id: response.data._id, 
             name: response.data.name, 
             email: response.data.email
-          }, 
+          } as AuthUser, 
           response.data.token
         );
         router.push("/"); // Redirect to admin dashboard
