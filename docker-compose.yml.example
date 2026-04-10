@@ -1,0 +1,53 @@
+# Backend Dockerfile (Save as backend/Dockerfile)
+FROM node:18-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
+COPY . .
+RUN npm run build
+EXPOSE 5001
+CMD ["npm", "start"]
+
+---
+
+# Frontend Dockerfile (Save as frontend/Dockerfile)
+FROM node:18-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
+COPY . .
+RUN npm run build
+EXPOSE 3000
+CMD ["npm", "start"]
+
+---
+
+# Docker Compose (Save as docker-compose.yml in root)
+version: "3.8"
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "5001:5001"
+    environment:
+      - MONGO_URI=mongodb://mongo:27017/bohuroopi
+      - NODE_ENV=production
+    depends_on:
+      - mongo
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://backend:5001/api
+    depends_on:
+      - backend
+  mongo:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+volumes:
+  mongo-data:

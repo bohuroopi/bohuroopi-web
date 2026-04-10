@@ -1,0 +1,57 @@
+@import "tailwindcss";
+
+@theme {
+  --color-myntra-pink: #581548;
+  --color-myntra-dark: #282c3f;
+  --color-myntra-gray: #535766;
+  --color-myntra-light-gray: #f5f5f6;
+
+  --font-sans: "Inter", system-ui, sans-serif;
+
+  --animate-fade-in: fade-in 0.3s ease-in-out;
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+
+    to {
+      opacity: 1;
+    }
+  }
+}
+
+:root {
+  --background: #FFFFFF;
+  --foreground: #282c3f;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Myntra Specific Utilities */
+.myntra-pink-btn {
+  background-color: var(--color-myntra-pink);
+  color: white;
+  font-weight: 700;
+  transition: all 0.2s ease;
+}
+
+.myntra-pink-btn:hover {
+  background-color: #edb01c;
+}
+
+.myntra-btn-outline {
+  border: 1px solid #d4d5d9;
+  color: var(--color-myntra-dark);
+  font-weight: 700;
+  transition: all 0.2s ease;
+}
+
+.myntra-btn-outline:hover {
+  border-color: var(--color-myntra-dark);
+}
