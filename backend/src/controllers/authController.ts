@@ -3,11 +3,14 @@ import jwt from 'jsonwebtoken';
 import User from '../models/User';
 import Admin from '../models/Admin';
 import Order from '../models/Order';
+import { sendEmail } from '../utils/emailService';
+
+export const otpStore = new Map<string, { otp: string, expiresAt: number }>();
 
 
 
-const generateToken = (id: string, isAdmin: boolean = false) => {
-    return jwt.sign({ id, isAdmin }, process.env.JWT_SECRET || 'secret', {
+const generateToken = (id: string, isAdmin: boolean = false, role?: string) => {
+    return jwt.sign({ id, isAdmin, role }, process.env.JWT_SECRET || 'secret', {
         expiresIn: '30d',
     });
 };
@@ -69,26 +72,65 @@ export const authUser = async (req: Request, res: Response) => {
     }
 };
 
-export const loginWithOTP = async (req: Request, res: Response) => {
+export const requestOTP = async (req: Request, res: Response) => {
     try {
-        const { phone, otp } = req.body;
-
-        // Static OTP check
-        if (otp !== '123456') {
-            return res.status(401).json({ success: false, message: 'Invalid OTP' });
+        const { email } = req.body;
+        if (!email) {
+            return res.status(400).json({ success: false, message: 'Email is required' });
         }
 
-        let user = await User.findOne({ phone });
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        // Store OTP with 10 mins expiry
+        otpStore.set(email, { otp, expiresAt: Date.now() + 10 * 60 * 1000 });
+        
+        // Keep 123456 as a backdoor or log it for local dev
+        console.log(`[OTP for ${email}]: ${otp}`);
+
+        await sendEmail({
+            to: email,
+            subject: 'Your Bohuroopi Login OTP',
+            text: `Your OTP for login is ${otp}. It is valid for 10 minutes.`,
+            html: `<div style="font-family: sans-serif; text-align: center;">
+                    <h2>Bohuroopi Login</h2>
+                    <p>Your One-Time Password (OTP) is:</p>
+                    <h1 style="color: #ff1e6d; letter-spacing: 0.2em;">${otp}</h1>
+                    <p>This code is valid for 10 minutes.</p>
+                   </div>`
+        });
+
+        res.json({ success: true, message: 'OTP sent successfully' });
+    } catch (error: any) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+export const loginWithOTP = async (req: Request, res: Response) => {
+    try {
+        const { email, otp } = req.body;
+
+        if (!email || !otp) {
+            return res.status(400).json({ success: false, message: 'Email and OTP are required' });
+        }
+
+        const record = otpStore.get(email);
+        if (!record || record.otp !== otp || Date.now() > record.expiresAt) {
+            return res.status(401).json({ success: false, message: 'Invalid or expired OTP' });
+        }
+
+        // Clear OTP after successful use
+        otpStore.delete(email);
+
+        let user = await User.findOne({ email });
         let isNewUser = false;
 
         if (!user) {
             isNewUser = true;
             user = await User.create({
-                phone,
+                email,
                 name: 'Customer'
             });
 
-        } else if (user.name === 'Customer' || !user.email) {
+        } else if (user.name === 'Customer' || !user.phone) {
             // Also consider them "new" if they haven't set their profile yet
             isNewUser = true;
         }
@@ -120,8 +162,8 @@ export const updateUserProfile = async (req: any, res: Response) => {
         if (user) {
             // Only update if non-empty string is provided
             if (req.body.name && req.body.name.trim()) user.name = req.body.name.trim();
-            if (req.body.email && req.body.email.trim()) user.email = req.body.email.trim();
-            // phone is NOT editable from profile — skip it entirely
+            // email is NOT editable from profile
+            if (req.body.phone && req.body.phone.trim()) user.phone = req.body.phone.trim();
             if (req.body.avatar !== undefined && req.body.avatar !== '') user.avatar = req.body.avatar;
 
             if (req.body.password) {
@@ -354,10 +396,9 @@ export const sendUserNotification = async (req: Request, res: Response) => {
 };
 
 
-// Admin Auth Controllers
 export const registerAdmin = async (req: Request, res: Response) => {
     try {
-        const { name, email, phone, password } = req.body;
+        const { name, email, phone, role } = req.body;
         const adminExists = await Admin.findOne({ 
             $or: [{ email }, { phone }] 
         });
@@ -366,36 +407,86 @@ export const registerAdmin = async (req: Request, res: Response) => {
             return res.status(400).json({ success: false, message: 'Admin with this email or phone already exists' });
         }
 
-        const admin = await Admin.create({ name, email, phone, password });
+        const admin = await Admin.create({ name, email, phone, role: role || 'sub_admin' });
 
         res.status(201).json({
             success: true,
             _id: admin._id,
             name: admin.name,
             email: admin.email,
-            token: generateToken((admin._id as any).toString(), true),
+            role: admin.role,
+            token: generateToken((admin._id as any).toString(), true, admin.role),
         });
     } catch (error: any) {
         res.status(500).json({ success: false, message: error.message });
     }
 };
 
-export const authAdmin = async (req: Request, res: Response) => {
+export const requestAdminOTP = async (req: Request, res: Response) => {
     try {
-        const { email, password } = req.body;
-        const admin = await Admin.findOne({ email });
-
-        if (admin && (await admin.comparePassword(password))) {
-            res.json({
-                success: true,
-                _id: admin._id,
-                name: admin.name,
-                email: admin.email,
-                token: generateToken((admin._id as any).toString(), true),
-            });
-        } else {
-            res.status(401).json({ success: false, message: 'Invalid admin credentials' });
+        const { email } = req.body;
+        if (!email) {
+            return res.status(400).json({ success: false, message: 'Email is required' });
         }
+
+        const admin = await Admin.findOne({ email });
+        if (!admin) {
+            return res.status(401).json({ success: false, message: "You're not an admin" });
+        }
+
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        // Store OTP with 10 mins expiry
+        otpStore.set("admin_" + email, { otp, expiresAt: Date.now() + 10 * 60 * 1000 });
+        
+        console.log(`[Admin OTP for ${email}]: ${otp}`);
+
+        await sendEmail({
+            to: email,
+            subject: 'Bohuroopi Admin Login OTP',
+            text: `Your Admin OTP for login is ${otp}. It is valid for 10 minutes.`,
+            html: `<div style="font-family: sans-serif; text-align: center;">
+                    <h2>Bohuroopi Admin</h2>
+                    <p>Your One-Time Password (OTP) is:</p>
+                    <h1 style="color: #ff1e6d; letter-spacing: 0.2em;">${otp}</h1>
+                    <p>This code is valid for 10 minutes.</p>
+                   </div>`
+        });
+
+        res.json({ success: true, message: 'OTP sent successfully' });
+    } catch (error: any) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+export const loginAdminWithOTP = async (req: Request, res: Response) => {
+    try {
+        const { email, otp } = req.body;
+
+        if (!email || !otp) {
+            return res.status(400).json({ success: false, message: 'Email and OTP are required' });
+        }
+
+        const record = otpStore.get("admin_" + email);
+        if (!record || record.otp !== otp || Date.now() > record.expiresAt) {
+            return res.status(401).json({ success: false, message: 'Invalid or expired OTP' });
+        }
+
+        otpStore.delete("admin_" + email);
+
+        const admin = await Admin.findOne({ email });
+        if (!admin) {
+            return res.status(401).json({ success: false, message: "You're not an admin" });
+        }
+
+        res.json({
+            success: true,
+            _id: admin._id,
+            name: admin.name,
+            email: admin.email,
+            role: admin.role,
+            token: generateToken((admin._id as any).toString(), true, admin.role),
+        });
+
     } catch (error: any) {
         res.status(500).json({ success: false, message: error.message });
     }

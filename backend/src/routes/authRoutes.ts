@@ -9,8 +9,10 @@ import {
     sendUserNotification,
     syncCart, 
     loginWithOTP, 
+    requestOTP,
     updateUserProfile,
-    authAdmin,
+    requestAdminOTP,
+    loginAdminWithOTP,
     registerAdmin,
     getAdmins,
     deleteAdmin,
@@ -23,19 +25,21 @@ import {
     addToWishlist,
     removeFromWishlist
 } from '../controllers/authController';
-import { protect, admin } from '../middleware/authMiddleware';
+import { protect, admin, superAdmin } from '../middleware/authMiddleware';
 
 const router = express.Router();
 
 // ─── Admin Auth (must be before wildcard /:id routes) ────────────────────────
-router.post('/admin/login', authAdmin);
-router.post('/admin/register', protect as any, admin as any, registerAdmin);
-router.get('/admins', protect as any, admin as any, getAdmins);
-router.delete('/admins/:id', protect as any, admin as any, deleteAdmin);
+router.post('/admin/request-otp', requestAdminOTP);
+router.post('/admin/login-otp', loginAdminWithOTP);
+router.post('/admin/register', protect as any, superAdmin as any, registerAdmin);
+router.get('/admins', protect as any, superAdmin as any, getAdmins);
+router.delete('/admins/:id', protect as any, superAdmin as any, deleteAdmin);
 
 // ─── Store User Routes ────────────────────────────────────────────────────────
 router.post('/register', registerUser);
 router.post('/login', authUser);
+router.post('/request-otp', requestOTP);
 router.post('/login-otp', loginWithOTP);
 router.get('/profile', protect as any, getUserProfile);
 router.put('/profile', protect as any, updateUserProfile);

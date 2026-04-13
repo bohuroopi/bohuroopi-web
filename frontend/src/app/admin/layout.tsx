@@ -19,13 +19,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
    useEffect(() => {
       setIsClient(true);
 
-      // Redirect if not authenticated and not already on the login page
-      if (isClient && !isLoginPage && !isAuthenticated) {
-         router.push("/login");
+      // Redirect if not authenticated or not an admin, and not already on the login page
+      if (isClient && !isLoginPage) {
+         if (!isAuthenticated) {
+            router.push("/login");
+         } else if (user?.role !== 'super_admin' && user?.role !== 'sub_admin') {
+            // If authenticated but not an admin, redirect to store home
+            router.push("/");
+         }
       }
 
-      // Redirect to dashboard if already authenticated and on the login page
-      if (isClient && isLoginPage && isAuthenticated) {
+      // Redirect to dashboard if already authenticated as admin and on the login page
+      if (isClient && isLoginPage && isAuthenticated && (user?.role === 'super_admin' || user?.role === 'sub_admin')) {
          router.push("/");
       }
 
@@ -83,7 +88,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {
          title: "Administration",
          items: [
-            { name: "Admins", icon: ShieldCheck, href: "/admins" },
+            { name: "Admin Users", icon: ShieldCheck, href: "/admins" },
             { name: "Settings", icon: Settings, href: "/settings" },
          ]
       }
@@ -117,19 +122,25 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         </h4>
                      )}
                      <div className="space-y-1">
-                        {group.items.map((item) => (
-                           <Link
-                              key={item.href}
-                              href={item.href}
-                              className={`flex items-center space-x-4 p-3 rounded-xl transition-all group ${pathname === item.href
-                                 ? 'bg-myntra-pink text-white shadow-lg shadow-pink-900/20'
-                                 : 'text-gray-400 hover:bg-gray-800 hover:text-white'
-                                 }`}
-                           >
-                              <item.icon className={`h-5 w-5 shrink-0 ${pathname === item.href ? 'text-white' : 'group-hover:text-myntra-pink transition-colors'}`} />
-                              <span className={`text-[13px] font-bold whitespace-nowrap overflow-hidden transition-all duration-300 ${isSidebarOpen ? 'w-auto opacity-100' : 'w-0 opacity-0'}`}>{item.name}</span>
-                           </Link>
-                        ))}
+                        {group.items
+                           .filter(item => {
+                              // Only super_admin can see Admin Users
+                              if (item.href === "/admins" && user?.role !== 'super_admin') return false;
+                              return true;
+                           })
+                           .map((item) => (
+                              <Link
+                                 key={item.href}
+                                 href={item.href}
+                                 className={`flex items-center space-x-4 p-3 rounded-xl transition-all group ${pathname === item.href
+                                    ? 'bg-myntra-pink text-white shadow-lg shadow-pink-900/20'
+                                    : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                                    }`}
+                              >
+                                 <item.icon className={`h-5 w-5 shrink-0 ${pathname === item.href ? 'text-white' : 'group-hover:text-myntra-pink transition-colors'}`} />
+                                 <span className={`text-[13px] font-bold whitespace-nowrap overflow-hidden transition-all duration-300 ${isSidebarOpen ? 'w-auto opacity-100' : 'w-0 opacity-0'}`}>{item.name}</span>
+                              </Link>
+                           ))}
                      </div>
                      {groupIdx < menuGroups.length - 1 && !isSidebarOpen && <div className="h-px bg-gray-800 mx-2 my-4" />}
                   </div>

@@ -15,26 +15,30 @@ function LoginContent() {
 
   const setAuth = useAuthStore((state) => state.setAuth);
 
-  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
   const [userName, setUserName] = useState("");
-  const [userEmail, setUserEmail] = useState("");
+  const [userPhone, setUserPhone] = useState("");
   const [step, setStep] = useState(1); // 1: Phone, 2: OTP, 3: Profile Completion
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleSendOTP = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (phone.length < 10) {
-      setError("Please enter a valid phone number");
+    if (!email || !/\S+@\S+\.\S+/.test(email)) {
+      setError("Please enter a valid email address");
       return;
     }
     setLoading(true);
     setError(null);
-    setTimeout(() => {
+    try {
+      await api.post("/users/request-otp", { email });
       setStep(2);
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Failed to send OTP");
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
   };
 
   const handleVerifyOTP = async (e: React.FormEvent) => {
@@ -43,7 +47,7 @@ function LoginContent() {
     setError(null);
 
     try {
-      const response = await api.post("/users/login-otp", { phone, otp });
+      const response = await api.post("/users/login-otp", { email, otp });
       
       if (response.data.success) {
         setAuth(
@@ -76,7 +80,7 @@ function LoginContent() {
     setError(null);
 
     try {
-      const response = await api.put("/users/profile", { name: userName, email: userEmail });
+      const response = await api.put("/users/profile", { name: userName, phone: userPhone });
       
       if (response.data.success) {
         setAuth(
@@ -113,17 +117,17 @@ function LoginContent() {
              {step === 3 ? (
                 <UserCircle className="h-8 w-8 text-myntra-pink" />
              ) : (
-                <Phone className="h-8 w-8 text-myntra-pink" />
+                <Mail className="h-8 w-8 text-myntra-pink" />
              )}
           </div>
           <h2 className="text-3xl font-black text-myntra-dark tracking-tight">
-            {step === 1 ? "Welcome Back" : step === 2 ? "Verify Number" : "Last Step!"}
+            {step === 1 ? "Welcome Back" : step === 2 ? "Verify Email" : "Last Step!"}
           </h2>
           <p className="text-gray-400 text-[14px] font-medium">
             {step === 1 
-               ? "Login with your phone number" 
+               ? "Login with your email address" 
                : step === 2
-                 ? `Enter the 6-digit code sent to ${phone}`
+                 ? `Enter the 6-digit code sent to ${email}`
                  : "Tell us a bit about yourself"}
           </p>
         </div>
@@ -149,22 +153,19 @@ function LoginContent() {
             {step === 1 ? (
                <form onSubmit={handleSendOTP} className="space-y-6">
                   <div className="relative group">
-                    <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center space-x-2 border-r border-gray-200 pr-3 mr-3">
-                       <span className="text-[14px] font-bold text-gray-500">+91</span>
-                    </div>
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-myntra-pink transition-colors" />
                     <input 
-                      type="tel" 
-                      value={phone}
-                      maxLength={10}
+                      type="email" 
+                      value={email}
                       required
-                      onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
-                      placeholder="Phone Number" 
-                      className="w-full border-2 border-gray-100 rounded-2xl py-4 pl-20 pr-4 outline-none focus:border-myntra-pink text-[15px] font-bold tracking-wider transition-all"
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="Email Address" 
+                      className="w-full border-2 border-gray-100 rounded-2xl py-4 pl-12 pr-4 outline-none focus:border-myntra-pink text-[15px] font-bold tracking-wider transition-all"
                     />
                   </div>
                   <button 
                     type="submit"
-                    disabled={loading || phone.length < 10}
+                    disabled={loading || !email}
                     className="w-full bg-myntra-dark hover:bg-black text-white py-5 uppercase font-black text-[14px] rounded-2xl shadow-lg flex items-center justify-center space-x-2 disabled:opacity-50 transition-all active:scale-[0.98]"
                   >
                      {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : (
@@ -202,7 +203,7 @@ function LoginContent() {
                        onClick={() => setStep(1)}
                        className="text-gray-400 text-[12px] font-bold uppercase tracking-widest hover:text-myntra-pink transition-colors underline"
                      >
-                        Change Number
+                        Change Email
                      </button>
                   </div>
                </form>
@@ -221,20 +222,21 @@ function LoginContent() {
                       />
                     </div>
                     <div className="relative group">
-                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-myntra-pink transition-colors" />
+                      <Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-myntra-pink transition-colors" />
                       <input 
-                        type="email" 
-                        value={userEmail}
+                        type="tel" 
+                        value={userPhone}
+                        maxLength={10}
                         required
-                        onChange={(e) => setUserEmail(e.target.value)}
-                        placeholder="Email Address" 
+                        onChange={(e) => setUserPhone(e.target.value.replace(/\D/g, ""))}
+                        placeholder="Phone Number" 
                         className="w-full border-2 border-gray-100 rounded-2xl py-4 pl-12 pr-4 outline-none focus:border-myntra-pink text-[14px] font-bold transition-all"
                       />
                     </div>
                  </div>
                  <button 
                     type="submit"
-                    disabled={loading || !userName || !userEmail}
+                    disabled={loading || !userName || !userPhone}
                     className="w-full bg-myntra-dark hover:bg-black text-white py-5 uppercase font-black text-[14px] rounded-2xl shadow-lg flex items-center justify-center space-x-2 disabled:opacity-50 transition-all active:scale-[0.98]"
                   >
                      {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <span>Complete Onboarding</span>}

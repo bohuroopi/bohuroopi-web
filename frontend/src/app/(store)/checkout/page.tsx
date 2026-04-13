@@ -44,20 +44,12 @@ export default function Checkout() {
         fetchAddresses();
         fetchSettings();
         
-        // Restore step from session storage if available
-        const savedStep = sessionStorage.getItem("checkout_step");
-        if (savedStep) setStep(parseInt(savedStep));
+        // Removed sessionStorage restoration to force Step 1 (Address) always
       }
     }
   }, [isAuthenticated, _authHydrated, router]);
 
-  useEffect(() => {
-    if (step > 1) {
-      sessionStorage.setItem("checkout_step", step.toString());
-    } else {
-      sessionStorage.removeItem("checkout_step");
-    }
-  }, [step]);
+  // Removed step session storage syncing
 
   const fetchSettings = async () => {
     try {
@@ -112,8 +104,20 @@ export default function Checkout() {
   const handleAddressSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isAddingNew) {
-      if (!newAddress.address || !newAddress.postalCode || !newAddress.fullName || !newAddress.phone) {
-          setError("Please fill out complete address details");
+      if (!newAddress.address || !newAddress.postalCode || !newAddress.fullName || !newAddress.phone || !newAddress.locality) {
+          setError("Please fill out complete address details including State");
+          return;
+      }
+
+      const phoneRegex = /^\d{10}$/;
+      if (!phoneRegex.test(newAddress.phone.replace(/\s/g, ''))) {
+          setError("Please enter a valid 10-digit phone number");
+          return;
+      }
+
+      const zipRegex = /^\d{6}$/;
+      if (!zipRegex.test(newAddress.postalCode.replace(/\s/g, ''))) {
+          setError("Please enter a valid 6-digit Pincode");
           return;
       }
       try {
@@ -176,8 +180,9 @@ export default function Checkout() {
             shippingAddress: {
                 fullName: finalAddress.fullName,
                 phone: finalAddress.phone,
-                address: `${finalAddress.street}, ${finalAddress.state}`,
+                address: finalAddress.street,
                 city: finalAddress.city,
+                state: finalAddress.state,
                 postalCode: finalAddress.zip,
                 country: finalAddress.country || 'India'
             },
@@ -298,15 +303,15 @@ export default function Checkout() {
                           <h3 className="text-[14px] font-bold text-myntra-dark uppercase tracking-wide">Contact Details</h3>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                               <input type="text" name="fullName" required value={newAddress.fullName} onChange={handleAddressChange} placeholder="Name" className="w-full border border-gray-300 rounded-md p-3 outline-none focus:border-myntra-pink text-[14px]" />
-                              <input type="text" name="phone" required value={newAddress.phone} onChange={handleAddressChange} placeholder="Mobile No." className="w-full border border-gray-300 rounded-md p-3 outline-none focus:border-myntra-pink text-[14px]" />
+                              <input type="tel" name="phone" required value={newAddress.phone} onChange={handleAddressChange} placeholder="10-Digit Mobile No." pattern="[0-9]{10}" maxLength={10} className="w-full border border-gray-300 rounded-md p-3 outline-none focus:border-myntra-pink text-[14px]" />
                           </div>
 
                           <h3 className="text-[14px] font-bold text-myntra-dark uppercase tracking-wide pt-2">Address</h3>
                           <div className="space-y-4">
-                              <input type="text" name="postalCode" required value={newAddress.postalCode} onChange={handleAddressChange} placeholder="Pin Code" className="w-full border border-gray-300 rounded-md p-3 outline-none focus:border-myntra-pink text-[14px]" />
+                              <input type="text" name="postalCode" required value={newAddress.postalCode} onChange={handleAddressChange} placeholder="6-Digit Pin Code" pattern="[0-9]{6}" maxLength={6} className="w-full border border-gray-300 rounded-md p-3 outline-none focus:border-myntra-pink text-[14px]" />
                               <input type="text" name="address" required value={newAddress.address} onChange={handleAddressChange} placeholder="Address (House No, Building, Street, Area)" className="w-full border border-gray-300 rounded-md p-3 outline-none focus:border-myntra-pink text-[14px]" />
                               <div className="grid grid-cols-2 gap-4">
-                                  <input type="text" name="locality" required value={newAddress.locality} onChange={handleAddressChange} placeholder="Locality / Town" className="w-full border border-gray-300 rounded-md p-3 outline-none focus:border-myntra-pink text-[14px]" />
+                                  <input type="text" name="locality" required value={newAddress.locality} onChange={handleAddressChange} placeholder="State" className="w-full border border-gray-300 rounded-md p-3 outline-none focus:border-myntra-pink text-[14px]" />
                                   <input type="text" name="city" required value={newAddress.city} onChange={handleAddressChange} placeholder="City / District" className="w-full border border-gray-300 rounded-md p-3 outline-none focus:border-myntra-pink text-[14px]" />
                               </div>
                           </div>

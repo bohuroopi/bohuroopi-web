@@ -15,6 +15,8 @@ import popupRoutes from './routes/popupRoutes';
 import couponRoutes from './routes/couponRoutes';
 import campaignRoutes from './routes/campaignRoutes';
 import marketingRoutes from './routes/marketingRoutes';
+import shiprocketRoutes from './routes/shiprocketRoutes';
+import dashboardRoutes from './routes/dashboardRoutes';
 
 dotenv.config();
 
@@ -42,6 +44,8 @@ app.use('/api/popups', popupRoutes);
 app.use('/api/coupons', couponRoutes);
 app.use('/api/campaigns', campaignRoutes);
 app.use('/api/marketing', marketingRoutes);
+app.use('/api/shiprocket', shiprocketRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 // Static files for uploads with explicit CORS
 app.use('/uploads', (req, res, next) => {

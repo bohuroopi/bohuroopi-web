@@ -32,6 +32,11 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response && error.response.status === 401) {
+      // Skip interceptor if the request is to a login route
+      if (error.config.url && error.config.url.includes('login')) {
+        return Promise.reject(error);
+      }
+
       // Get the logout function from the store
       const { logout } = useAuthStore.getState();
       logout();

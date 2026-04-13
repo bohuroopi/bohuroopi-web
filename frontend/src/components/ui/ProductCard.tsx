@@ -22,6 +22,20 @@ const ProductCard = ({ product }: ProductCardProps) => {
   const { addItem } = useCartStore();
   const { addItem: addToWishlist, removeItem: removeFromWishlist, isInWishlist } = useWishlistStore();
   
+  // Deterministic random rating based on product ID
+  const getRatingData = (id: string) => {
+    let hash = 0;
+    for (let i = 0; i < id.length; i++) {
+       hash = id.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const normalized = Math.abs(hash) / 2147483648;
+    const rating = (3.8 + normalized * 1.2).toFixed(1); // 3.8 to 5.0
+    const count = 15 + (Math.abs(~hash) % 850); // 15 to 865 ratings
+    return { rating, count };
+  };
+  
+  const ratingData = getRatingData(product._id);
+
   const isDiscounted = !!product.discountPrice;
   const displayPrice = product.discountPrice || product.price;
   const discountPercent = isDiscounted 
@@ -63,11 +77,14 @@ const ProductCard = ({ product }: ProductCardProps) => {
             </div>
           )}
 
-          {/* Rating Badge Mock */}
-          <div className="absolute bottom-3 left-3 bg-white/90 backdrop-blur-sm px-1.5 py-0.5 rounded flex items-center space-x-1 text-[10px] font-bold z-10">
-             <span>4.2</span>
-             <Star className="h-2.5 w-2.5 text-teal-600 fill-teal-600" />
-             <span className="text-gray-400 pl-1 border-l border-gray-300">1.2k</span>
+          {/* Rating Badge */}
+          <div className="absolute bottom-3 left-3 bg-white/95 px-1.5 py-1 rounded-[4px] flex items-center space-x-1.5 text-[10px] font-bold z-10 border border-gray-200/50 shadow-sm">
+             <div className="flex items-center space-x-1 text-myntra-dark">
+                <span>{ratingData.rating}</span>
+                <Star className="h-2.5 w-2.5 text-teal-600 fill-teal-600 mb-[1px]" />
+             </div>
+             <div className="h-3 w-[1px] bg-gray-200" />
+             <span className="text-gray-500 font-bold tracking-wide">{ratingData.count} <span className="hidden sm:inline">RATINGS</span></span>
           </div>
         </Link>
 

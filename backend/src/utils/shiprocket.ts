@@ -1,9 +1,5 @@
 import axios from 'axios';
 
-const SHIPROCKET_EMAIL = process.env.SHIPROCKET_EMAIL;
-const SHIPROCKET_PASSWORD = process.env.SHIPROCKET_PASSWORD;
-const SHIPROCKET_PICKUP_LOCATION = process.env.SHIPROCKET_PICKUP_LOCATION || "Primary Warehouse";
-
 let token: string | null = null;
 let tokenExpiry: number | null = null;
 
@@ -16,10 +12,18 @@ export const authenticate = async () => {
     return token;
   }
 
+  const email = process.env.SHIPROCKET_EMAIL;
+  const password = process.env.SHIPROCKET_PASSWORD;
+
+  if (!email || !password) {
+    console.error("Missing Shiprocket credentials in .env");
+    throw new Error('Missing Shiprocket credentials');
+  }
+
   try {
     const response = await axios.post('https://apiv2.shiprocket.in/v1/external/auth/login', {
-      email: SHIPROCKET_EMAIL,
-      password: SHIPROCKET_PASSWORD,
+      email: email,
+      password: password,
     });
 
     if (response.data.token) {
@@ -36,40 +40,91 @@ export const authenticate = async () => {
 };
 
 /**
+ * Validate that the order data doesn't contain placeholders or dummy data
+ */
+const validateShiprocketData = (order: any) => {
+  const placeholders = ["not authorized", "placeholder", "test", "dummy", "unknown"];
+  const dummyPincodes = ["000000", "111111", "123456", "400000", "999999"];
+
+  const address = order.shippingAddress;
+  const fullName = (address.fullName || "").toLowerCase();
+  const street = (address.address || "").toLowerCase();
+  const email = (order.user?.email || "").toLowerCase();
+  const pincode = (address.postalCode || address.zip || "").replace(/\D/g, '');
+
+  if (placeholders.some(p => fullName.includes(p))) {
+    throw new Error(`Invalid Customer Name: "${address.fullName}". Please update with real customer name.`);
+  }
+
+  if (placeholders.some(p => email.includes(p)) && !email.includes("customer@example.com")) {
+    throw new Error(`Invalid Email: "${order.user?.email}". Please update with real email.`);
+  }
+
+  if (placeholders.some(p => street.includes(p))) {
+    throw new Error(`Invalid Address: "${address.address}". Please update with complete delivery details.`);
+  }
+
+  if (dummyPincodes.includes(pincode)) {
+    throw new Error(`Invalid Pincode: "${pincode}". Shiprocket does not accept dummy pincodes.`);
+  }
+
+  if (pincode.length !== 6) {
+    throw new Error(`Invalid Pincode: "${pincode}". Must be exactly 6 digits.`);
+  }
+};
+
+/**
  * Create a custom order in Shiprocket
  */
 export const createShiprocketOrder = async (order: any) => {
+  console.log("Creating Shiprocket Order for ID:", order._id);
+  
+  if (!order.shippingAddress) {
+    throw new Error("Order shipping address is missing");
+  }
+
+  // Run the safety filter
+  validateShiprocketData(order);
+
   const jwt = await authenticate();
+  const pickupLocation = process.env.SHIPROCKET_PICKUP_LOCATION || "Primary";
+
+  // Robust field extraction
+  const fullName = order.shippingAddress.fullName || "Customer";
+  const nameParts = fullName.trim().split(/\s+/);
+  const firstName = nameParts[0] || "Customer";
+  const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : ".";
 
   const shiprocketData = {
     order_id: order._id.toString(),
-    order_date: new Date(order.createdAt).toISOString().split('T')[0],
-    pickup_location: SHIPROCKET_PICKUP_LOCATION,
-    billing_customer_name: order.shippingAddress.fullName || "Customer",
-    billing_last_name: "",
-    billing_address: order.shippingAddress.address,
+    order_date: new Date(order.createdAt || Date.now()).toISOString().split('T')[0],
+    pickup_location: pickupLocation,
+    billing_customer_name: firstName,
+    billing_last_name: lastName,
+    billing_address: order.shippingAddress.address || "No Address Provided",
     billing_address_2: "",
-    billing_city: order.shippingAddress.city,
-    billing_pincode: order.shippingAddress.postalCode,
-    billing_state: "", // Should ideally come from address
+    billing_city: order.shippingAddress.city || "City",
+    billing_pincode: (order.shippingAddress.postalCode || order.shippingAddress.zip || "").replace(/\D/g, '').substring(0, 6) || "400001",
+    billing_state: order.shippingAddress.state || order.shippingAddress.city || "Maharashtra", 
     billing_country: order.shippingAddress.country || "India",
-    billing_email: order.user.email || "customer@example.com",
-    billing_phone: order.shippingAddress.phone || "0000000000",
+    billing_email: (order.user && order.user.email) || "customer@example.com",
+    billing_phone: (order.shippingAddress.phone || "9999999999").replace(/\D/g, '').substring(0, 10),
     shipping_is_billing: true,
-    order_items: order.orderItems.map((item: any) => ({
-      name: item.name,
-      sku: item.product.toString(),
-      units: item.quantity,
-      selling_price: item.price,
-      hsn: "", // Optional
+    order_items: (order.orderItems || []).map((item: any) => ({
+      name: item.name || "Product",
+      sku: item.product ? item.product.toString() : (item._id ? item._id.toString() : "SKU"),
+      units: item.quantity || 1,
+      selling_price: item.price || 0,
     })),
-    payment_method: order.paymentMethod === 'COD' ? 'COD' : 'Prepaid',
-    sub_total: order.totalPrice - order.shippingPrice,
-    length: 10, // Default 10cm
-    width: 10,  // Default 10cm
-    height: 5,   // Default 5cm
-    weight: 0.5, // Default 0.5kg
+    payment_method: (order.paymentMethod || "").toLowerCase() === 'cod' ? 'COD' : 'Prepaid',
+    sub_total: (order.totalPrice || 0) - (order.shippingPrice || 0),
+    length: 10,
+    breadth: 10,
+    height: 5,
+    weight: 0.5,
   };
+
+  console.log("Shiprocket Payload Prepared");
 
   try {
     const response = await axios.post('https://apiv2.shiprocket.in/v1/external/orders/create/adhoc', shiprocketData, {
@@ -81,7 +136,7 @@ export const createShiprocketOrder = async (order: any) => {
 
     return response.data;
   } catch (error: any) {
-    console.error('Shiprocket Order Creation Error:', error.response?.data || error.message);
+    console.error('Shiprocket API Error:', error.response?.data || error.message);
     throw error;
   }
 };
@@ -101,6 +156,32 @@ export const trackShipment = async (shipmentId: string) => {
     return response.data;
   } catch (error: any) {
     console.error('Shiprocket Tracking Error:', error.response?.data || error.message);
+    throw error;
+  }
+};
+
+/**
+ * Check serviceability for a given pincode
+ */
+export const checkServiceability = async (deliveryPincode: string, weight: number = 0.5, isCod: boolean = false) => {
+  const jwt = await authenticate();
+  const pickupPincode = process.env.SHIPROCKET_PICKUP_PINCODE || "700144"; // Defaulting to Kolkata pincode
+
+  try {
+    const response = await axios.get('https://apiv2.shiprocket.in/v1/external/courier/serviceability/', {
+      params: {
+        pickup_postcode: pickupPincode,
+        delivery_postcode: deliveryPincode,
+        weight: weight,
+        cod: isCod ? 1 : 0
+      },
+      headers: {
+        'Authorization': `Bearer ${jwt}`,
+      },
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error('Shiprocket Serviceability Error:', error.response?.data || error.message);
     throw error;
   }
 };

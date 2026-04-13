@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Lock, Mail, Loader2, ShieldCheck, User as UserIcon } from "lucide-react";
-import { motion } from "framer-motion";
+import { Lock, Mail, Loader2, ShieldCheck, ArrowRight } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useAuthStore, type AuthUser } from "@/store/useAuthStore";
 import api from "@/lib/axios";
@@ -12,17 +12,38 @@ export default function AdminLogin() {
   const setAuth = useAuthStore((state) => state.setAuth);
 
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [otp, setOtp] = useState("");
+  const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleRequestOTP = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !/\S+@\S+\.\S+/.test(email)) {
+      setError("Please enter a valid email address");
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await api.post("/users/admin/request-otp", { email });
+      if (response.data.success) {
+         setStep(2);
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Failed to send OTP. Are you an admin?");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOTP = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
     try {
-      const response = await api.post("/users/admin/login", { email, password });
+      const response = await api.post("/users/admin/login-otp", { email, otp });
       
       if (response.data.success) {
         setAuth(
@@ -33,13 +54,13 @@ export default function AdminLogin() {
           } as AuthUser, 
           response.data.token
         );
-        router.push("/"); // Redirect to admin dashboard
+        router.push("/admin"); // Redirect to admin dashboard
       } else {
 
-        setError(response.data.message || "Invalid credentials");
+        setError(response.data.message || "Invalid OTP");
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || "Something went wrong. Please try again.");
+      setError(err.response?.data?.message || "Invalid OTP or expired.");
     } finally {
       setLoading(false);
     }
@@ -75,51 +96,91 @@ export default function AdminLogin() {
           </motion.div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-5">
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-gray-500 uppercase tracking-widest pl-1">Email Address</label>
-              <div className="relative group">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-500 group-focus-within:text-myntra-pink transition-colors" />
-                <input 
-                  type="email" 
-                  value={email}
-                  required
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@bohuroopi.com" 
-                  className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-12 pr-4 outline-none focus:border-myntra-pink text-white text-[15px] transition-all placeholder:text-gray-600"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-gray-500 uppercase tracking-widest pl-1">Secret Key</label>
-              <div className="relative group">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-500 group-focus-within:text-myntra-pink transition-colors" />
-                <input 
-                  type="password" 
-                  value={password}
-                  required
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••" 
-                  className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-12 pr-4 outline-none focus:border-myntra-pink text-white text-[15px] transition-all placeholder:text-gray-600"
-                />
-              </div>
-            </div>
-          </div>
-
-          <button 
-            type="submit"
-            disabled={loading}
-            className="w-full bg-myntra-pink hover:bg-[#f72c5c] text-white py-5 rounded-2xl font-bold text-[15px] transition-all border-none active:scale-[0.98] shadow-lg shadow-myntra-pink/20 flex items-center justify-center space-x-3 disabled:opacity-50"
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={`step-${step}`}
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
           >
-             {loading ? (
-               <Loader2 className="h-5 w-5 animate-spin" />
-             ) : (
-               <span>Authorize Access</span>
-             )}
-          </button>
-        </form>
+            {step === 1 ? (
+              <form onSubmit={handleRequestOTP} className="space-y-6">
+                <div className="space-y-5">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-widest pl-1">Email Address</label>
+                    <div className="relative group">
+                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-500 group-focus-within:text-myntra-pink transition-colors" />
+                      <input 
+                        type="email" 
+                        value={email}
+                        required
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="admin@bohuroopi.com" 
+                        className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-12 pr-4 outline-none focus:border-myntra-pink text-white text-[15px] transition-all placeholder:text-gray-600"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <button 
+                  type="submit"
+                  disabled={loading || !email}
+                  className="w-full bg-myntra-pink hover:bg-[#f72c5c] text-white py-5 rounded-2xl font-bold text-[15px] transition-all border-none active:scale-[0.98] shadow-lg shadow-myntra-pink/20 flex items-center justify-center space-x-3 disabled:opacity-50"
+                >
+                  {loading ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <>
+                      <span>Send OTP</span>
+                      <ArrowRight className="h-5 w-5" />
+                    </>
+                  )}
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleVerifyOTP} className="space-y-6">
+                <div className="space-y-5">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-widest pl-1">Secure Code</label>
+                    <div className="relative group">
+                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-500 group-focus-within:text-myntra-pink transition-colors" />
+                      <input 
+                        type="text" 
+                        value={otp}
+                        maxLength={6}
+                        required
+                        onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
+                        placeholder="••••••" 
+                        className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-12 pr-4 outline-none focus:border-myntra-pink text-white text-[15px] transition-all placeholder:text-gray-600 tracking-[0.5em] text-center"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col space-y-4">
+                  <button 
+                    type="submit"
+                    disabled={loading || otp.length < 6}
+                    className="w-full bg-myntra-pink hover:bg-[#f72c5c] text-white py-5 rounded-2xl font-bold text-[15px] transition-all border-none active:scale-[0.98] shadow-lg shadow-myntra-pink/20 flex items-center justify-center space-x-3 disabled:opacity-50"
+                  >
+                    {loading ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      <span>Verify & Enter</span>
+                    )}
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={() => setStep(1)}
+                    className="text-gray-400 text-[12px] font-bold uppercase tracking-widest hover:text-myntra-pink transition-colors underline text-center"
+                  >
+                    Use Another Email
+                  </button>
+                </div>
+              </form>
+            )}
+          </motion.div>
+        </AnimatePresence>
 
         <div className="mt-12 text-center border-t border-white/5 pt-8">
           <p className="text-xs text-gray-600 uppercase tracking-widest font-bold">Systems Status: <span className="text-emerald-500">Online</span></p>

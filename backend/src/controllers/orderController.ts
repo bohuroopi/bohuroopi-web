@@ -34,6 +34,19 @@ export const createOrder = async (req: any, res: Response) => {
     try {
         const { orderItems, shippingAddress, paymentMethod, discountPrice } = req.body;
 
+        // Validation for shipping data
+        if (shippingAddress) {
+            const phone = (shippingAddress.phone || "").replace(/\D/g, '');
+            const pincode = (shippingAddress.postalCode || "").replace(/\D/g, '');
+            
+            if (phone.length !== 10) {
+                return res.status(400).json({ success: false, message: "Valid 10-digit phone number is required" });
+            }
+            if (pincode.length !== 6) {
+                return res.status(400).json({ success: false, message: "Valid 6-digit Pincode is required" });
+            }
+        }
+
         if (orderItems && orderItems.length === 0) {
             return res.status(400).json({ success: false, message: 'No order items' });
         }
@@ -71,6 +84,7 @@ export const createOrder = async (req: any, res: Response) => {
         }
 
         const createdOrder = await order.save();
+
         res.status(201).json({ success: true, order: createdOrder });
 
     } catch (error: any) {
@@ -234,10 +248,22 @@ export const shipWithShiprocket = async (req: Request, res: Response) => {
         }
     } catch (error: any) {
         console.error("Shiprocket Controller Error:", error.response?.data || error.message);
-        res.status(500).json({ 
+        
+        // If it's a Shiprocket validation error, extract the specific errors
+        const srError = error.response?.data;
+        let errorMessage = srError?.message || error.message;
+        
+        if (srError?.errors) {
+            const details = Object.entries(srError.errors)
+                .map(([key, val]: [string, any]) => `${key}: ${Array.isArray(val) ? val.join(', ') : val}`)
+                .join('\n');
+            errorMessage = `${errorMessage}\n\nDetails:\n${details}`;
+        }
+
+        res.status(400).json({ 
             success: false, 
-            message: error.response?.data?.message || error.message,
-            errors: error.response?.data?.errors
+            message: errorMessage,
+            errors: srError?.errors
         });
     }
 };

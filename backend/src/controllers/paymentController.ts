@@ -147,6 +147,7 @@ export const phonePeCallback = async (req: Request, res: Response) => {
                 update_time: new Date().toISOString()
             };
             
+            order.status = 'processing';
             await order.save();
             
             // Redirect user back to frontend success page

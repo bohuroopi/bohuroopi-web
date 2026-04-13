@@ -20,6 +20,12 @@ export default function ProductDetail() {
   const [error, setError] = useState<string | null>(null);
   const [mainImage, setMainImage] = useState<string>("");
 
+  // Delivery check state
+  const [pincode, setPincode] = useState("");
+  const [deliveryData, setDeliveryData] = useState<any>(null);
+  const [checkingPincode, setCheckingPincode] = useState(false);
+  const [pincodeError, setPincodeError] = useState<string | null>(null);
+
   const { addItem: addToWishlist, removeItem: removeFromWishlist, isInWishlist } = useWishlistStore();
   const { items, addItem: addToCart, updateQuantity, removeItem: removeFromCart } = useCartStore();
 
@@ -97,6 +103,41 @@ export default function ProductDetail() {
     if (slug) fetchProductData();
   }, [slug]);
 
+  const handlePincodeCheck = async () => {
+    if (pincode.length !== 6 || !/^\d+$/.test(pincode)) {
+      setPincodeError("Please enter a valid 6-digit Pincode");
+      return;
+    }
+    
+    try {
+      setCheckingPincode(true);
+      setPincodeError(null);
+      setDeliveryData(null);
+      
+      const res = await api.get(`/shiprocket/serviceability?pincode=${pincode}&weight=${product?.weight || 0.5}`);
+      
+      if (res.data.success && res.data.data.status === 200) {
+         const courierInfo = res.data.data.data?.available_courier_companies?.[0];
+         if (courierInfo) {
+            setDeliveryData({
+               etd: courierInfo.etd,
+               city: courierInfo.city,
+               codAvailable: courierInfo.cod === 1
+            });
+         } else {
+            setPincodeError("Currently not serviceable in this area.");
+         }
+      } else {
+         setPincodeError("Serviceability failed. Please check the pincode.");
+      }
+    } catch (err) {
+       console.error("Pincode check error", err);
+       setPincodeError("Unable to check right now. Try again later.");
+    } finally {
+       setCheckingPincode(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-[70vh] flex flex-col items-center justify-center text-myntra-pink">
@@ -117,6 +158,20 @@ export default function ProductDetail() {
       </div>
     );
   }
+
+  // Deterministic random rating based on product ID
+  const getRatingData = (id: string) => {
+    let hash = 0;
+    for (let i = 0; i < id.length; i++) {
+       hash = id.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const normalized = Math.abs(hash) / 2147483648;
+    const rating = (3.8 + normalized * 1.2).toFixed(1); 
+    const count = 15 + (Math.abs(~hash) % 850); 
+    return { rating, count };
+  };
+  
+  const ratingData = getRatingData(product._id);
 
   const discountPercent = product.discountPrice ? Math.round(((product.price - product.discountPrice) / product.price) * 100) : 0;
 
@@ -176,10 +231,10 @@ export default function ProductDetail() {
              {/* Rating Badge Mock (Can be dynamic if you add a reviews system) */}
              <div className="mt-4 flex items-center border border-gray-200 w-fit px-3 py-1 rounded-lg hover:border-myntra-pink cursor-pointer transition-all group">
                 <span className="text-[13px] font-black text-myntra-dark flex items-center">
-                   4.2 <Star className="h-3.5 w-3.5 fill-teal-600 text-teal-600 ml-1 group-hover:scale-110 transition-transform" />
+                   {ratingData.rating} <Star className="h-3.5 w-3.5 fill-teal-600 text-teal-600 ml-1 group-hover:scale-110 transition-transform" />
                 </span>
                 <span className="text-gray-200 mx-3">|</span>
-                <span className="text-[12px] font-bold text-gray-400 uppercase tracking-widest">124 Ratings</span>
+                <span className="text-[12px] font-bold text-gray-400 uppercase tracking-widest">{ratingData.count} Ratings</span>
              </div>
           </div>
 
@@ -238,14 +293,37 @@ export default function ProductDetail() {
              <div className="flex items-center space-x-3 font-black text-myntra-dark uppercase text-[12px] tracking-widest">
                 <span>CHECK DELIVERY</span> <MapPin className="h-4 w-4 text-myntra-pink" />
              </div>
-             <div className="relative border-2 border-gray-100 rounded-2xl overflow-hidden flex w-full max-w-sm group focus-within:border-myntra-pink transition-colors">
-                <input 
-                   type="text" 
-                   placeholder="Enter Pincode" 
-                   className="flex-grow p-4 text-sm font-bold outline-none bg-transparent"
-                   maxLength={6}
-                />
-                <button className="text-myntra-pink font-black text-[11px] uppercase tracking-widest px-6 bg-white hover:bg-pink-50 transition-colors">Check</button>
+             <div className="flex flex-col gap-2">
+                <div className={`relative border-2 rounded-2xl overflow-hidden flex w-full max-w-sm group transition-colors ${pincodeError ? 'border-red-300' : deliveryData ? 'border-[#03a685]' : 'border-gray-100 focus-within:border-myntra-pink'}`}>
+                   <input 
+                      type="text" 
+                      value={pincode}
+                      onChange={(e) => setPincode(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handlePincodeCheck()}
+                      placeholder="Enter Pincode" 
+                      className="flex-grow p-4 text-sm font-bold outline-none bg-transparent"
+                      maxLength={6}
+                   />
+                   <button 
+                      onClick={handlePincodeCheck}
+                      disabled={checkingPincode}
+                      className="text-myntra-pink font-black text-[11px] uppercase tracking-widest px-6 bg-white hover:bg-pink-50 transition-colors disabled:opacity-50"
+                   >
+                      {checkingPincode ? <Loader2 className="h-4 w-4 animate-spin" /> : "Check"}
+                   </button>
+                </div>
+                
+                {pincodeError && (
+                   <p className="text-red-500 text-[11px] font-bold tracking-wide">{pincodeError}</p>
+                )}
+                
+                {deliveryData && (
+                   <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 max-w-sm mt-2 animate-fade-in">
+                       <p className="text-[#03a685] font-black text-[14px]">Get it by {new Date(deliveryData.etd).toLocaleDateString("en-IN", { weekday: 'short', month: 'short', day: 'numeric'})}</p>
+                       <div className="text-[12px] font-bold text-gray-500 mt-1">Delivery to <span className="uppercase text-myntra-dark">{deliveryData.city}</span> ({pincode})</div>
+                       {!deliveryData.codAvailable && <p className="text-amber-600 text-[11px] font-bold mt-2">Note: Pay on Delivery (COD) is not available.</p>}
+                   </div>
+                )}
              </div>
              
              <ul className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-[13px] font-medium text-gray-500 pt-2">

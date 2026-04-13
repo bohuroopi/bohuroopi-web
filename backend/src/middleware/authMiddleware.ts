@@ -20,6 +20,9 @@ export const protect = async (req: AuthRequest, res: Response, next: NextFunctio
 
       if (decoded.isAdmin) {
         req.user = await Admin.findById(decoded.id).select('-password') as any;
+        if (!req.user) {
+          console.error(`[AUTH] Admin record not found for ID: ${decoded.id}`);
+        }
         req.isAdmin = true;
       } else {
         req.user = await User.findById(decoded.id).select('-password') as any;
@@ -27,7 +30,6 @@ export const protect = async (req: AuthRequest, res: Response, next: NextFunctio
       }
       
       return next();
-
 
     } catch (error) {
       console.error(error);
@@ -44,7 +46,19 @@ export const admin = (req: AuthRequest, res: Response, next: NextFunction) => {
   if (req.user && req.isAdmin) {
     next();
   } else {
-    res.status(403).json({ success: false, message: 'Not authorized as an admin' });
+    console.error(`[AUTH] Admin access denied. req.user: ${!!req.user}, req.isAdmin: ${req.isAdmin}`);
+    res.status(403).json({ 
+      success: false, 
+      message: 'Not authorized as an admin. Your session might have expired or you do not have sufficient permissions.' 
+    });
+  }
+};
+
+export const superAdmin = (req: AuthRequest, res: Response, next: NextFunction) => {
+  if (req.user && req.isAdmin && req.user.role === 'super_admin') {
+    next();
+  } else {
+    res.status(403).json({ success: false, message: 'Super Admin access required' });
   }
 };
 

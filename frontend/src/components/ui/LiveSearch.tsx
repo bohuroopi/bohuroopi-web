@@ -126,7 +126,7 @@ export default function LiveSearch({ isMobile, onClose }: LiveSearchProps) {
                     </div>
                     <div className="flex flex-col overflow-hidden">
                       <span className="text-[13px] font-bold text-myntra-dark truncate">{product.name}</span>
-                      <span className="text-[11px] font-black text-myntra-pink">₹{product.price?.sale || product.price?.base}</span>
+                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-0.5">{product.category?.name || "Product"}</span>
                     </div>
                   </Link>
                 ))}

@@ -18,6 +18,7 @@ export interface IOrder extends Document {
     phone?: string;
     address: string;
     city: string;
+    state?: string;
     postalCode: string;
     country: string;
   };
@@ -42,6 +43,8 @@ export interface IOrder extends Document {
   shiprocketShipmentId?: string;
   awbCode?: string;
   trackingUrl?: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 const orderSchema: Schema = new Schema(
@@ -63,6 +66,7 @@ const orderSchema: Schema = new Schema(
       phone: { type: String },
       address: { type: String, required: true },
       city: { type: String, required: true },
+      state: { type: String },
       postalCode: { type: String, required: true },
       country: { type: String, required: true },
     },

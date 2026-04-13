@@ -14,7 +14,7 @@ export default function Profile() {
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
   const [isEditing, setIsEditing] = useState(false);
-  const [formData, setFormData] = useState({ name: "", email: "", avatar: "" });
+  const [formData, setFormData] = useState({ name: "", phone: "", avatar: "" });
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [updateLoading, setUpdateLoading] = useState(false);
@@ -33,7 +33,7 @@ export default function Profile() {
 
   useEffect(() => {
     if (user) {
-      setFormData({ name: user.name || "", email: user.email || "", avatar: user.avatar || "" });
+      setFormData({ name: user.name || "", phone: user.phone || "", avatar: user.avatar || "" });
       setAvatarPreview(null);
     }
   }, [user]);
@@ -67,7 +67,7 @@ export default function Profile() {
       setUpdateLoading(true);
       const payload = {
         name: formData.name,
-        email: formData.email,
+        phone: formData.phone,
         avatar: formData.avatar,
       };
       const res = await api.put("/users/profile", payload);
@@ -131,8 +131,8 @@ export default function Profile() {
               <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarFileChange} />
             </div>
             <h3 className="font-bold text-[16px] text-myntra-dark">{user?.name}</h3>
-            {user?.phone && <p className="text-[13px] text-gray-500 font-medium mt-1">{user.phone}</p>}
-            {user?.email && <p className="text-[12px] text-gray-400 mt-0.5">{user.email}</p>}
+            {user?.email && <p className="text-[13px] text-gray-500 font-medium mt-1">{user.email}</p>}
+            {user?.phone && <p className="text-[12px] text-gray-400 mt-0.5">{user.phone}</p>}
           </div>
 
           <div className="bg-white border border-gray-200 divide-y divide-gray-100">
@@ -171,7 +171,7 @@ export default function Profile() {
             ) : (
               <div className="flex space-x-2">
                 <button
-                  onClick={() => { setIsEditing(false); setAvatarPreview(null); setFormData({ name: user?.name || "", email: user?.email || "", avatar: user?.avatar || "" }); }}
+                  onClick={() => { setIsEditing(false); setAvatarPreview(null); setFormData({ name: user?.name || "", phone: user?.phone || "", avatar: user?.avatar || "" }); }}
                   className="flex items-center space-x-1 text-[14px] text-gray-500 border border-gray-300 px-3 py-2 rounded-md hover:bg-gray-50 transition-colors"
                 >
                   <X className="h-4 w-4" /><span>Cancel</span>
@@ -199,23 +199,23 @@ export default function Profile() {
               )}
             </div>
 
-            {/* Email */}
+            {/* Email — read-only always */}
             <div>
               <label className="block text-[12px] font-bold text-gray-500 mb-1 uppercase tracking-wide">Email Address</label>
-              {isEditing ? (
-                <input type="email" name="email" value={formData.email} onChange={handleChange} className="w-full border border-gray-300 p-3 rounded-md text-[14px] outline-none focus:border-myntra-pink transition-colors" placeholder="Email Address" />
-              ) : (
-                <div className="p-3 border border-gray-100 rounded-md text-[14px] text-myntra-dark bg-gray-50">{user?.email || "Not specified"}</div>
-              )}
-            </div>
-
-            {/* Mobile — read-only always */}
-            <div>
-              <label className="block text-[12px] font-bold text-gray-500 mb-1 uppercase tracking-wide">Mobile Number</label>
               <div className="p-3 border border-gray-100 rounded-md text-[14px] text-myntra-dark bg-gray-50 flex items-center justify-between">
-                <span>{user?.phone || "Not specified"}</span>
+                <span>{user?.email || "Not specified"}</span>
                 <span className="text-[11px] text-gray-400 font-bold uppercase tracking-wide">Cannot be changed</span>
               </div>
+            </div>
+
+            {/* Mobile */}
+            <div>
+              <label className="block text-[12px] font-bold text-gray-500 mb-1 uppercase tracking-wide">Mobile Number</label>
+              {isEditing ? (
+                <input type="tel" name="phone" value={formData.phone} maxLength={10} onChange={(e) => { const val = e.target.value.replace(/\D/g, ""); setFormData({ ...formData, phone: val }); }} className="w-full border border-gray-300 p-3 rounded-md text-[14px] outline-none focus:border-myntra-pink transition-colors" placeholder="Mobile Number" />
+              ) : (
+                <div className="p-3 border border-gray-100 rounded-md text-[14px] text-myntra-dark bg-gray-50">{user?.phone || "Not specified"}</div>
+              )}
             </div>
 
             {/* Avatar hint when editing */}
