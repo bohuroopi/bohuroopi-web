@@ -494,7 +494,7 @@ export const loginAdminWithOTP = async (req: Request, res: Response) => {
 
 export const getAdmins = async (req: Request, res: Response) => {
     try {
-        const admins = await Admin.find({}).select('-password');
+        const admins = await Admin.find({});
         res.json({ success: true, count: admins.length, admins });
     } catch (error: any) {
         res.status(500).json({ success: false, message: error.message });

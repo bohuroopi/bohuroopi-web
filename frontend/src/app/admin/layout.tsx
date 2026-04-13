@@ -8,7 +8,8 @@ import { useRouter, usePathname } from "next/navigation";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-   const { user, isAuthenticated, logout } = useAuthStore();
+   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+   const { user, isAuthenticated, logout, _hasHydrated } = useAuthStore();
    const router = useRouter();
    const pathname = usePathname();
    const [isClient, setIsClient] = useState(false);
@@ -19,8 +20,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
    useEffect(() => {
       setIsClient(true);
 
-      // Redirect if not authenticated or not an admin, and not already on the login page
-      if (isClient && !isLoginPage) {
+      // Wait for hydration before acting on auth state
+      if (isClient && _hasHydrated && !isLoginPage) {
          if (!isAuthenticated) {
             router.push("/login");
          } else if (user?.role !== 'super_admin' && user?.role !== 'sub_admin') {
@@ -30,11 +31,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       }
 
       // Redirect to dashboard if already authenticated as admin and on the login page
-      if (isClient && isLoginPage && isAuthenticated && (user?.role === 'super_admin' || user?.role === 'sub_admin')) {
-         router.push("/");
+      if (isClient && _hasHydrated && isLoginPage && isAuthenticated && (user?.role === 'super_admin' || user?.role === 'sub_admin')) {
+         router.push("/admin");
       }
 
-   }, [isClient, isAuthenticated, user, router, isLoginPage]);
+   }, [isClient, _hasHydrated, isAuthenticated, user, router, isLoginPage]);
 
    const handleLogout = () => {
       logout();
@@ -104,10 +105,55 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
    return (
       <div className="min-h-screen bg-gray-50 flex font-sans text-myntra-dark">
-         {/* Sidebar */}
+         {/* Mobile Menu Overlay */}
+         {isMobileMenuOpen && (
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] md:hidden" onClick={() => setIsMobileMenuOpen(false)}>
+               <div className="bg-myntra-dark w-72 h-full flex flex-col p-6 animate-in slide-in-from-left duration-300" onClick={e => e.stopPropagation()}>
+                  <div className="flex justify-between items-center mb-10">
+                     <Link href="/admin" className="font-bold text-xl text-white">Bohuroopi <span className="text-myntra-pink">Admin</span></Link>
+                     <button onClick={() => setIsMobileMenuOpen(false)} className="text-white hover:text-myntra-pink">
+                        <X className="h-6 w-6" />
+                     </button>
+                  </div>
+                  <div className="flex-grow overflow-y-auto space-y-8 pr-2">
+                     {menuGroups.map((group, gIdx) => (
+                        <div key={gIdx} className="space-y-3">
+                           <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-widest px-3">{group.title}</h4>
+                           <div className="space-y-1">
+                              {group.items
+                                 .filter(item => {
+                                    const isAdminPath = item.href === "/admin/admins";
+                                    if (isAdminPath && user?.role !== 'super_admin') return false;
+                                    return true;
+                                 })
+                                 .map(item => (
+                                    <Link
+                                       key={item.href}
+                                       href={item.href}
+                                       onClick={() => setIsMobileMenuOpen(false)}
+                                       className={`flex items-center space-x-4 p-3 rounded-xl transition-all ${pathname === item.href ? 'bg-myntra-pink text-white shadow-lg' : 'text-gray-400'}`}
+                                    >
+                                       <item.icon className="h-5 w-5" />
+                                       <span className="text-[13px] font-bold">{item.name}</span>
+                                    </Link>
+                                 ))}
+                           </div>
+                        </div>
+                     ))}
+                  </div>
+                  <div className="pt-6 border-t border-gray-800">
+                     <button onClick={handleLogout} className="flex items-center space-x-4 p-3 text-red-400 w-full group">
+                        <LogOut className="h-5 w-5" />
+                        <span className="text-[14px] font-bold">Log Out</span>
+                     </button>
+                  </div>
+               </div>
+            </div>
+         )}
+         {/* Sidebar for Desktop */}
          <aside className={`bg-myntra-dark text-white transition-all duration-300 ${isSidebarOpen ? 'w-64' : 'w-20'} hidden md:flex flex-col shrink-0 sticky top-0 h-screen overflow-hidden`}>
             <div className="p-6 h-20 border-b border-gray-800 flex justify-between items-center shrink-0">
-               <Link href="/" className={`font-bold text-xl tracking-tight text-white ${!isSidebarOpen && 'hidden'}`}>Bohuroopi <span className="text-myntra-pink">Admin</span></Link>
+               <Link href="/admin" className={`font-bold text-xl tracking-tight text-white ${!isSidebarOpen && 'hidden'}`}>Bohuroopi <span className="text-myntra-pink">Admin</span></Link>
                <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-1 hover:text-myntra-pink transition-colors ml-auto">
                   {isSidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
                </button>
@@ -125,13 +171,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         {group.items
                            .filter(item => {
                               // Only super_admin can see Admin Users
-                              if (item.href === "/admins" && user?.role !== 'super_admin') return false;
+                              const isAdminPath = item.href === "/admin/admins";
+                              if (isAdminPath && user?.role !== 'super_admin') return false;
                               return true;
                            })
                            .map((item) => (
                               <Link
                                  key={item.href}
                                  href={item.href}
+                                 onClick={() => setIsMobileMenuOpen(false)}
                                  className={`flex items-center space-x-4 p-3 rounded-xl transition-all group ${pathname === item.href
                                     ? 'bg-myntra-pink text-white shadow-lg shadow-pink-900/20'
                                     : 'text-gray-400 hover:bg-gray-800 hover:text-white'
@@ -160,7 +208,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             {/* Header */}
             <header className="bg-white border-b border-gray-200 h-20 flex items-center justify-between px-8 sticky top-0 z-10 shrink-0">
                <div className="flex items-center space-x-4">
-                  <button className="md:hidden text-myntra-dark"><Menu className="h-6 w-6" /></button>
+                  <button
+                     onClick={() => setIsMobileMenuOpen(true)}
+                     className="md:hidden text-myntra-dark p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                     <Menu className="h-6 w-6" />
+                  </button>
                </div>
 
                <div className="flex items-center space-x-6">

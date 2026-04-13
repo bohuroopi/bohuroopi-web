@@ -50,7 +50,8 @@ export default function AdminLogin() {
           { 
             _id: response.data._id, 
             name: response.data.name, 
-            email: response.data.email
+            email: response.data.email,
+            role: response.data.role,
           } as AuthUser, 
           response.data.token
         );

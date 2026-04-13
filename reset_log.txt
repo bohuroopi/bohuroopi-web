@@ -1,0 +1,13 @@
+[dotenv@17.3.1] injecting env (24) from backend/.env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+Connecting to MongoDB...
+Connected successfully.
+Purging all existing admins...
+Successfully removed 1 admin(s).
+Creating new Super Admin...
+-----------------------------------------
+SUCCESS: New Super Admin Created
+ID: 69dd35fa3531b176444d4e59
+Email: social.bohuroopi@gmail.com
+Role: super_admin
+-----------------------------------------
+Disconnected from MongoDB.

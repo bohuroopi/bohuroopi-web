@@ -35,18 +35,21 @@ export default function AdminUsersPage() {
   });
   const [saving, setSaving] = useState(false);
 
+  const [accessDenied, setAccessDenied] = useState(false);
+
   useEffect(() => { 
-    if (currentUser?.role === 'super_admin') {
-      fetchAdmins(); 
-    }
-  }, [currentUser]);
+    fetchAdmins(); 
+  }, []);
 
   const fetchAdmins = async () => {
     try {
       setLoading(true);
-      const res = await api.get("/admins");
+      const res = await api.get("/users/admins");
       if (res.data.success) setAdmins(res.data.admins);
-    } catch (err) { 
+    } catch (err: any) { 
+      if (err.response?.status === 403) {
+        setAccessDenied(true);
+      }
       console.error("Fetch Admins Error:", err); 
     } finally { 
       setLoading(false); 
@@ -57,7 +60,7 @@ export default function AdminUsersPage() {
     e.preventDefault();
     try {
       setSaving(true);
-      const res = await api.post("/admin/register", formData);
+      const res = await api.post("/users/admin/register", formData);
       if (res.data.success) {
         setIsAddModalOpen(false);
         setFormData({ name: "", email: "", phone: "", role: "sub_admin" });
@@ -79,7 +82,7 @@ export default function AdminUsersPage() {
     if (!confirm("Are you sure you want to remove this administrator? They will lose all access immediately.")) return;
     
     try {
-      const res = await api.delete(`/admins/${id}`);
+      const res = await api.delete(`/users/admins/${id}`);
       if (res.data.success) {
         setSelectedId(null);
         fetchAdmins();
@@ -95,7 +98,8 @@ export default function AdminUsersPage() {
 
   const selectedAdmin = admins.find(a => a._id === selectedId);
 
-  if (currentUser?.role !== 'super_admin') {
+  // Only show restricted if the backend actually rejected us (403)
+  if (accessDenied) {
     return (
       <div className="flex flex-col items-center justify-center py-20 space-y-4">
         <ShieldAlert className="h-16 w-16 text-red-500" />
