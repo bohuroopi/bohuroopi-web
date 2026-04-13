@@ -29,3 +29,5 @@ yarn-error.log*
 
 # local uploads
 uploads/
+reset-admin.js
+reset_log.txt
